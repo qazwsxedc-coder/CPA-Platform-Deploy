@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "channel": "stable",
+  "generatedAt": "",
+  "currentBaseline": {
+    "cli": "sha256:e0c6b2bb450435a918db21ee1fa3689c85427ffb5df8a817b671462d48c74751",
+    "manager": "sha256:37f45d0ddd3758b992715671b4e7f92b34f12d5754f9499f762eac715f5351db"
+  },
+  "latest": {
+    "cli": "",
+    "manager": ""
+  },
+  "releases": [],
+  "preparation": {
+    "state": "failed",
+    "reason": "GitHub Actions candidate preparation failed; previous candidates retained"
+  }
+}
