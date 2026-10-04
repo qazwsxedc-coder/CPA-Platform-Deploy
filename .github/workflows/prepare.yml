@@ -34,6 +34,8 @@ jobs:
         run: |
           git remote add upstream https://github.com/seakee/CPA-Manager-Plus.git
           git fetch --tags upstream "refs/tags/${{ steps.versions.outputs.manager }}"
+          git config user.name 'CPA Release Bot'
+          git config user.email 'cpa-release-bot@users.noreply.github.com'
           git merge --no-edit "${{ steps.versions.outputs.manager }}"
       - uses: docker/login-action@v3
         with:
