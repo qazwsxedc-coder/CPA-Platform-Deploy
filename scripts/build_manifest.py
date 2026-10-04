@@ -30,15 +30,19 @@ def main():
                 "migrationRequired": False, "migrationMode": "none", "evidence": evidence,
                 "evidenceSha256": digest(evidence), "validatedAt": now}
         if item["releaseId"] in existing:
-            if existing[item["releaseId"]] != item:
+            if any(existing[item["releaseId"]].get(key) != item.get(key)
+                   for key in ("component", "version", "imageTag", "imageDigest", "imageId",
+                               "sourceCommit", "allowedFromImageIds", "migrationMode")):
                 raise SystemExit("published_candidate_changed")
+            return existing[item["releaseId"]]
         else:
             releases.append(item)
+        return item
 
-    make("cli", args.cli_version, args.cli_image_id, args.cli_digest, args.cli_source_commit, args.cli_from, "official")
-    make("manager", args.manager_version, args.manager_image_id, args.manager_digest, args.manager_source_commit, args.manager_from, "custom")
+    cli = make("cli", args.cli_version, args.cli_image_id, args.cli_digest, args.cli_source_commit, args.cli_from, "official")
+    manager = make("manager", args.manager_version, args.manager_image_id, args.manager_digest, args.manager_source_commit, args.manager_from, "custom")
     output = {"schemaVersion": 1, "channel": "stable", "generatedAt": now,
-              "currentBaseline": previous.get("currentBaseline", {}),
+              "currentBaseline": {"cli": cli["imageId"], "manager": manager["imageId"]},
               "latest": {"cli": args.cli_version, "manager": args.manager_version},
               "releases": releases, "preparation": {"state": "published", "reason": "", "source": "GitHub Actions"}}
     Path(args.output).write_text(json.dumps(output, ensure_ascii=False, sort_keys=True, indent=2) + "\n")

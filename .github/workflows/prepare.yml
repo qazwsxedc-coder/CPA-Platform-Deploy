@@ -85,7 +85,7 @@ jobs:
           git fetch origin channel:refs/remotes/origin/channel || true
           if git show origin/channel:manifest.json >/dev/null 2>&1; then git checkout -B channel origin/channel; else git checkout -b channel; fi
           git add manifest.json
-          git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Publish verified stable candidates'
+          git diff --cached --quiet || git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Publish verified stable candidates'
           git push origin HEAD:channel
       - name: Preserve prior manifest when preparation fails
         if: failure()
@@ -97,6 +97,6 @@ jobs:
           git checkout -B channel origin/channel
           cp failed-manifest.json manifest.json
           git add manifest.json
-          git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Record candidate preparation failure'
+          git diff --cached --quiet || git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Record candidate preparation failure'
           git push origin HEAD:channel
 
