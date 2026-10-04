@@ -59,7 +59,7 @@ jobs:
         run: |
           tag="$VERSION-custom.1"
           commit="$(git -C manager-source rev-parse HEAD)"
-          docker buildx build --platform linux/amd64 --build-arg VERSION="$tag" --build-arg SOURCE_COMMIT="$commit" --label org.opencontainers.image.version="$tag" --label org.opencontainers.image.revision="$commit" -t "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" --load manager-source
+          docker buildx build --platform linux/amd64 -f manager-source/Dockerfile.manager-server --build-arg VERSION="$tag" --build-arg SOURCE_COMMIT="$commit" --label org.opencontainers.image.version="$tag" --label org.opencontainers.image.revision="$commit" -t "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" --load manager-source
           docker push "ghcr.io/$GHCR_OWNER/cpa-manager:$tag"
           echo "manager_id=$(docker image inspect --format '{{.Id}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag")" >> "$GITHUB_ENV"
           echo "manager_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" | tr -d '"')" >> "$GITHUB_ENV"
@@ -82,11 +82,9 @@ jobs:
             --manager-version "${{ steps.versions.outputs.manager }}-custom.1" --manager-image-id "$manager_id" --manager-digest "ghcr.io/$GHCR_OWNER/cpa-manager@$manager_digest" --manager-source-commit "$manager_commit" --manager-from "$manager_from"
       - name: Publish channel manifest
         run: |
-          git checkout --orphan channel-publish
-          git rm -rf . >/dev/null 2>&1 || true
-          mkdir -p channel
-          cp ../manifest.json channel/manifest.json 2>/dev/null || cp manifest.json channel/manifest.json
-          git add channel/manifest.json
+          git fetch origin channel:refs/remotes/origin/channel || true
+          if git show origin/channel:manifest.json >/dev/null 2>&1; then git checkout -B channel origin/channel; else git checkout -b channel; fi
+          git add manifest.json
           git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Publish verified stable candidates'
           git push origin HEAD:channel
       - name: Preserve prior manifest when preparation fails
@@ -95,11 +93,10 @@ jobs:
           git fetch origin channel:refs/remotes/origin/channel || true
           git show origin/channel:manifest.json > failed-manifest.json 2>/dev/null || cp channel/manifest.json failed-manifest.json
           python3 -c 'import json; p="failed-manifest.json"; d=json.load(open(p)); d["preparation"]={"state":"failed","reason":"GitHub Actions candidate preparation failed; previous candidates retained"}; open(p,"w").write(json.dumps(d,indent=2)+"\n")'
-          git checkout --orphan failed-publish
-          git rm -rf . >/dev/null 2>&1 || true
-          mkdir -p channel
-          cp ../failed-manifest.json channel/manifest.json 2>/dev/null || cp failed-manifest.json channel/manifest.json
-          git add channel/manifest.json
+          git fetch origin channel:refs/remotes/origin/channel
+          git checkout -B channel origin/channel
+          cp failed-manifest.json manifest.json
+          git add manifest.json
           git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Record candidate preparation failure'
           git push origin HEAD:channel
 
