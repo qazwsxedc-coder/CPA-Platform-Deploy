@@ -1,0 +1,17 @@
+[Unit]
+Description=CPA Linux automatic upgrade executor
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/cpa-platform/upgrader/upgrader.py --config /etc/cpa-upgrader/config.json
+Restart=always
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/cpa-platform/upgrader /opt/cpa-platform/runtime /opt/cpa-platform/backups /etc/cpa-upgrader
+
+[Install]
+WantedBy=multi-user.target

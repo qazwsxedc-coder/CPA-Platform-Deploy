@@ -1,0 +1,103 @@
+name: Prepare and publish fixed upgrade candidates
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: stable-candidate
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      GHCR_OWNER: qazwsxedc-coder
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve official stable versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "cli=$(gh api repos/router-for-me/CLIProxyAPI/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+          echo "manager=$(gh api repos/seakee/CPA-Manager-Plus/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: qazwsxedc-coder/CPA-Manager-Plus
+          ref: feature/linux-auto-upgrades
+          path: manager-source
+          fetch-depth: 0
+      - name: Merge official Manager tag
+        working-directory: manager-source
+        run: |
+          git remote add upstream https://github.com/seakee/CPA-Manager-Plus.git
+          git fetch --tags upstream "refs/tags/${{ steps.versions.outputs.manager }}"
+          git merge --no-edit "${{ steps.versions.outputs.manager }}"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Republish official CLI image
+        env:
+          VERSION: ${{ steps.versions.outputs.cli }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          docker pull --platform linux/amd64 "eceasy/cli-proxy-api:$VERSION"
+          docker tag "eceasy/cli-proxy-api:$VERSION" "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION"
+          docker push "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION"
+          echo "cli_id=$(docker image inspect --format '{{.Id}}' "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION")" >> "$GITHUB_ENV"
+          echo "cli_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION" | tr -d '"')" >> "$GITHUB_ENV"
+          echo "cli_commit=$(gh api "repos/router-for-me/CLIProxyAPI/commits/$VERSION" --jq .sha)" >> "$GITHUB_ENV"
+      - name: Build and publish custom Manager image
+        env:
+          VERSION: ${{ steps.versions.outputs.manager }}
+        run: |
+          tag="$VERSION-custom.1"
+          commit="$(git -C manager-source rev-parse HEAD)"
+          docker buildx build --platform linux/amd64 --build-arg VERSION="$tag" --build-arg SOURCE_COMMIT="$commit" --label org.opencontainers.image.version="$tag" --label org.opencontainers.image.revision="$commit" -t "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" --load manager-source
+          docker push "ghcr.io/$GHCR_OWNER/cpa-manager:$tag"
+          echo "manager_id=$(docker image inspect --format '{{.Id}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag")" >> "$GITHUB_ENV"
+          echo "manager_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" | tr -d '"')" >> "$GITHUB_ENV"
+          echo "manager_commit=$commit" >> "$GITHUB_ENV"
+      - name: Candidate startup and API smoke
+        env:
+          CLI_IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/cpa-cli:${{ steps.versions.outputs.cli }}
+          MANAGER_IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/cpa-manager:${{ steps.versions.outputs.manager }}-custom.1
+        run: |
+          ./scripts/smoke-image.sh "$CLI_IMAGE" 8317
+          ./scripts/smoke-image.sh "$MANAGER_IMAGE" 18317
+      - name: Build ordered immutable channel manifest
+        run: |
+          git fetch origin channel:refs/remotes/origin/channel || true
+          if git show origin/channel:manifest.json > previous.json 2>/dev/null; then :; else cp channel/manifest.json previous.json; fi
+          cli_from="$(python3 -c 'import json; print(json.load(open("previous.json")).get("currentBaseline",{}).get("cli","sha256:"+"0"*64))')"
+          manager_from="$(python3 -c 'import json; print(json.load(open("previous.json")).get("currentBaseline",{}).get("manager","sha256:"+"0"*64))')"
+          python3 scripts/build_manifest.py --previous previous.json --output manifest.json \
+            --cli-version "${{ steps.versions.outputs.cli }}" --cli-image-id "$cli_id" --cli-digest "ghcr.io/$GHCR_OWNER/cpa-cli@$cli_digest" --cli-source-commit "$cli_commit" --cli-from "$cli_from" \
+            --manager-version "${{ steps.versions.outputs.manager }}-custom.1" --manager-image-id "$manager_id" --manager-digest "ghcr.io/$GHCR_OWNER/cpa-manager@$manager_digest" --manager-source-commit "$manager_commit" --manager-from "$manager_from"
+      - name: Publish channel manifest
+        run: |
+          git checkout --orphan channel-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p channel
+          cp ../manifest.json channel/manifest.json 2>/dev/null || cp manifest.json channel/manifest.json
+          git add channel/manifest.json
+          git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Publish verified stable candidates'
+          git push origin HEAD:channel
+      - name: Preserve prior manifest when preparation fails
+        if: failure()
+        run: |
+          git fetch origin channel:refs/remotes/origin/channel || true
+          git show origin/channel:manifest.json > failed-manifest.json 2>/dev/null || cp channel/manifest.json failed-manifest.json
+          python3 -c 'import json; p="failed-manifest.json"; d=json.load(open(p)); d["preparation"]={"state":"failed","reason":"GitHub Actions candidate preparation failed; previous candidates retained"}; open(p,"w").write(json.dumps(d,indent=2)+"\n")'
+          git checkout --orphan failed-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p channel
+          cp ../failed-manifest.json channel/manifest.json 2>/dev/null || cp failed-manifest.json channel/manifest.json
+          git add channel/manifest.json
+          git -c user.name='CPA Release Bot' -c user.email='cpa-release-bot@users.noreply.github.com' commit -m 'Record candidate preparation failure'
+          git push origin HEAD:channel
+
