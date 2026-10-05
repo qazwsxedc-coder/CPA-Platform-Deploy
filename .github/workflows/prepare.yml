@@ -48,29 +48,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           docker pull --platform linux/amd64 "eceasy/cli-proxy-api:$VERSION"
-          docker tag "eceasy/cli-proxy-api:$VERSION" "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION"
-          docker push "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION"
-          echo "cli_id=$(docker image inspect --format '{{.Id}}' "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION")" >> "$GITHUB_ENV"
-          echo "cli_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-cli:$VERSION" | tr -d '"')" >> "$GITHUB_ENV"
+          docker tag "eceasy/cli-proxy-api:$VERSION" "cpa-candidate/cli:$VERSION"
+          echo "cli_id=$(docker image inspect --format '{{.Id}}' "cpa-candidate/cli:$VERSION")" >> "$GITHUB_ENV"
           echo "cli_commit=$(gh api "repos/router-for-me/CLIProxyAPI/commits/$VERSION" --jq .sha)" >> "$GITHUB_ENV"
-      - name: Build and publish custom Manager image
+      - name: Build custom Manager image
         env:
           VERSION: ${{ steps.versions.outputs.manager }}
         run: |
           tag="$VERSION-custom.1"
           commit="$(git -C manager-source rev-parse HEAD)"
           docker buildx build --platform linux/amd64 -f manager-source/Dockerfile.manager-server --build-arg VERSION="$tag" --build-arg SOURCE_COMMIT="$commit" --label org.opencontainers.image.version="$tag" --label org.opencontainers.image.revision="$commit" -t "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" --load manager-source
-          docker push "ghcr.io/$GHCR_OWNER/cpa-manager:$tag"
           echo "manager_id=$(docker image inspect --format '{{.Id}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag")" >> "$GITHUB_ENV"
-          echo "manager_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$tag" | tr -d '"')" >> "$GITHUB_ENV"
           echo "manager_commit=$commit" >> "$GITHUB_ENV"
       - name: Candidate startup and API smoke
         env:
-          CLI_IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/cpa-cli:${{ steps.versions.outputs.cli }}
+          CLI_IMAGE: cpa-candidate/cli:${{ steps.versions.outputs.cli }}
           MANAGER_IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/cpa-manager:${{ steps.versions.outputs.manager }}-custom.1
         run: |
           ./scripts/smoke-image.sh "$CLI_IMAGE" 8317
           ./scripts/smoke-image.sh "$MANAGER_IMAGE" 18317
+      - name: Publish verified candidate images
+        env:
+          CLI_VERSION: ${{ steps.versions.outputs.cli }}
+          MANAGER_VERSION: ${{ steps.versions.outputs.manager }}
+        run: |
+          docker tag "cpa-candidate/cli:$CLI_VERSION" "ghcr.io/$GHCR_OWNER/cpa-cli:$CLI_VERSION"
+          docker push "ghcr.io/$GHCR_OWNER/cpa-cli:$CLI_VERSION"
+          manager_tag="$MANAGER_VERSION-custom.1"
+          docker push "ghcr.io/$GHCR_OWNER/cpa-manager:$manager_tag"
+          echo "cli_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-cli:$CLI_VERSION" | tr -d '"')" >> "$GITHUB_ENV"
+          echo "manager_digest=$(docker buildx imagetools inspect --format '{{json .Manifest.Digest}}' "ghcr.io/$GHCR_OWNER/cpa-manager:$manager_tag" | tr -d '"')" >> "$GITHUB_ENV"
       - name: Build ordered immutable channel manifest
         run: |
           git fetch origin channel:refs/remotes/origin/channel || true
