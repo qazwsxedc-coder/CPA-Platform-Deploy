@@ -29,7 +29,7 @@ TERMINAL = ('succeeded', 'failed', 'rolled_back')
 SERVICES = {'cli': 'cli-proxy-api', 'manager': 'cpa-manager-plus'}
 PROTOCOL_FIELDS = ('releaseId component version imageTag imageSource imageDigest imageId sourceCommit '
                    'allowedFromImageIds rollbackDataCompatible migrationRequired migrationMode '
-                   'evidenceFile evidenceSha256 validatedAt').split()
+                   'evidence evidenceSha256 validatedAt').split()
 CHANNEL = 'https://raw.githubusercontent.com/qazwsxedc-coder/CPA-Platform-Deploy/channel/manifest.json'
 
 
@@ -451,7 +451,8 @@ class DockerRuntime:
                     else:
                         text = command(['docker', 'exec', self.config['containers']['cli'], '/CLIProxyAPI/CLIProxyAPI', '-h'])
                         expected = (release['version'] if release else job['fromVersion']).lstrip('v')
-                        require('Version: ' + expected + ',' in text, 'version_mismatch')
+                        require(('CLIProxyAPI Version: ' + expected + ',') in text or
+                                ('Version: ' + expected + ',') in text, 'version_mismatch')
                     break
                 except Fault:
                     raise
