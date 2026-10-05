@@ -8,7 +8,7 @@ permissions:
   packages: write
 concurrency:
   group: stable-candidate
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -97,7 +97,16 @@ jobs:
       - name: Preserve prior manifest when preparation fails
         if: failure()
         run: |
+          # A stale run must never overwrite a newer verified channel.  The
+          # first fetch records the channel tip seen by this run; only that
+          # exact tip may receive the failure marker.
+          channel_base="$(git ls-remote origin refs/heads/channel | awk '{print $1}')"
           git fetch origin channel:refs/remotes/origin/channel || true
+          channel_now="$(git rev-parse refs/remotes/origin/channel 2>/dev/null || true)"
+          if [[ -n "$channel_base" && "$channel_now" != "$channel_base" ]]; then
+            echo 'A newer channel publication exists; preserving it.'
+            exit 0
+          fi
           git show origin/channel:manifest.json > failed-manifest.json 2>/dev/null || cp channel/manifest.json failed-manifest.json
           python3 -c 'import json; p="failed-manifest.json"; d=json.load(open(p)); d["preparation"]={"state":"failed","reason":"GitHub Actions candidate preparation failed; previous candidates retained"}; open(p,"w").write(json.dumps(d,indent=2)+"\n")'
           git fetch origin channel:refs/remotes/origin/channel
