@@ -10,9 +10,8 @@
     "manager": "v1.14.3-custom.1"
   },
   "preparation": {
-    "reason": "",
-    "source": "GitHub Actions",
-    "state": "published"
+    "state": "failed",
+    "reason": "GitHub Actions candidate preparation failed; previous candidates retained"
   },
   "releases": [
     {
