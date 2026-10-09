@@ -1,17 +1,18 @@
 {
   "channel": "stable",
   "currentBaseline": {
-    "cli": "sha256:5817331fda216587bb07616a993fec24341506daf0fddad4f1efc7e6b528cc1c",
-    "manager": "sha256:006a46ee58151b750ada14388c2e676bb3cded780574e0a353d706f6f1e899ae"
+    "cli": "sha256:0a6b4a0b7d623b1d01d1185c9a81c93b0826209258e78216c7a80247646a9017",
+    "manager": "sha256:6ee450e63787059fac2a6010c4214b8670866bc641fd084281f9733ac71f0961"
   },
-  "generatedAt": "2026-10-06T20:49:43.066520Z",
+  "generatedAt": "2026-10-09T20:35:28.432313Z",
   "latest": {
-    "cli": "v8.0.16",
-    "manager": "v1.14.4-custom.1"
+    "cli": "v8.0.23",
+    "manager": "v1.14.5-custom.1"
   },
   "preparation": {
-    "state": "failed",
-    "reason": "GitHub Actions candidate preparation failed; previous candidates retained"
+    "reason": "",
+    "source": "GitHub Actions",
+    "state": "published"
   },
   "releases": [
     {
@@ -133,6 +134,66 @@
       "sourceCommit": "707215dd44d98a975c77515e6b5be753eeb96320",
       "validatedAt": "2026-10-06T20:49:43.066520Z",
       "version": "v1.14.4-custom.1"
+    },
+    {
+      "allowedFromImageIds": [
+        "sha256:5817331fda216587bb07616a993fec24341506daf0fddad4f1efc7e6b528cc1c"
+      ],
+      "component": "cli",
+      "evidence": {
+        "allowedFromImageIds": [
+          "sha256:5817331fda216587bb07616a993fec24341506daf0fddad4f1efc7e6b528cc1c"
+        ],
+        "apiSmokePassed": true,
+        "imageId": "sha256:0a6b4a0b7d623b1d01d1185c9a81c93b0826209258e78216c7a80247646a9017",
+        "migrationRehearsalPassed": false,
+        "officialCompatible": true,
+        "recognizedAdditive": false,
+        "startupPassed": true,
+        "validatedAt": "2026-10-09T20:35:28.432313Z"
+      },
+      "evidenceSha256": "6f032c306eeab2f899a2e95cc7f1bc7adf54ed6780c00dbd2f2902f04f356bad",
+      "imageDigest": "ghcr.io/qazwsxedc-coder/cpa-cli@sha256:73ce3efe52f3de01238482c0f11fc88ad9b357f7cd3bf5bfdfa208ab9fe13032",
+      "imageId": "sha256:0a6b4a0b7d623b1d01d1185c9a81c93b0826209258e78216c7a80247646a9017",
+      "imageSource": "official",
+      "imageTag": "ghcr.io/qazwsxedc-coder/cpa-cli:v8.0.23",
+      "migrationMode": "none",
+      "migrationRequired": false,
+      "releaseId": "cli-v8.0.23",
+      "rollbackDataCompatible": true,
+      "sourceCommit": "d318bcc3afb9ea8782862f5e8cdb541afdc9dfa5",
+      "validatedAt": "2026-10-09T20:35:28.432313Z",
+      "version": "v8.0.23"
+    },
+    {
+      "allowedFromImageIds": [
+        "sha256:006a46ee58151b750ada14388c2e676bb3cded780574e0a353d706f6f1e899ae"
+      ],
+      "component": "manager",
+      "evidence": {
+        "allowedFromImageIds": [
+          "sha256:006a46ee58151b750ada14388c2e676bb3cded780574e0a353d706f6f1e899ae"
+        ],
+        "apiSmokePassed": true,
+        "imageId": "sha256:6ee450e63787059fac2a6010c4214b8670866bc641fd084281f9733ac71f0961",
+        "migrationRehearsalPassed": false,
+        "officialCompatible": true,
+        "recognizedAdditive": false,
+        "startupPassed": true,
+        "validatedAt": "2026-10-09T20:35:28.432313Z"
+      },
+      "evidenceSha256": "2bfff1b30e74d420dc46f6b2cff10b83f3edb6fcd7e1621d2637c598788bd82d",
+      "imageDigest": "ghcr.io/qazwsxedc-coder/cpa-manager@sha256:48365f6643a0195dddcf69b92f9a8bcf0136eb651ed2ec8b0732cd61806430b2",
+      "imageId": "sha256:6ee450e63787059fac2a6010c4214b8670866bc641fd084281f9733ac71f0961",
+      "imageSource": "custom",
+      "imageTag": "ghcr.io/qazwsxedc-coder/cpa-manager:v1.14.5-custom.1",
+      "migrationMode": "none",
+      "migrationRequired": false,
+      "releaseId": "manager-v1.14.5-custom.1",
+      "rollbackDataCompatible": true,
+      "sourceCommit": "d3a90adc6dd6fdc40fad703a7716102d025434d5",
+      "validatedAt": "2026-10-09T20:35:28.432313Z",
+      "version": "v1.14.5-custom.1"
     }
   ],
   "schemaVersion": 1
